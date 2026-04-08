@@ -1,0 +1,16 @@
+{
+  "name": "pollen-extension",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "build": "esbuild src/content.ts --bundle --outfile=dist/content.js --format=iife --target=chrome120",
+    "watch": "esbuild src/content.ts --bundle --outfile=dist/content.js --format=iife --target=chrome120 --watch",
+    "package": "npm run build && cp manifest.json dist/ && cp -r icons dist/"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "@types/chrome": "^0.0.287",
+    "esbuild": "^0.24.0",
+    "typescript": "^5.7.0"
+  }
+}
