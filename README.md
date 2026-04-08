@@ -7,7 +7,6 @@ Learn more at [nectar.hypha.coop](https://nectar.hypha.coop).
 ## Setup
 
 ```bash
-cd extension
 npm install
 npm run package
 ```

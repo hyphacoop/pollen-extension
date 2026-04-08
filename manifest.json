@@ -10,7 +10,11 @@
   },
   "browser_specific_settings": {
     "gecko": {
-      "id": "hello@hypha.coop"
+      "id": "hello@hypha.coop",
+      "data_collection_permissions": {
+        "required": ["websiteContent"],
+        "optional": []
+      }
     }
   },
   "content_scripts": [
