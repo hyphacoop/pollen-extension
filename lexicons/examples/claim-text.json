@@ -1,0 +1,18 @@
+{
+  "$type": "coop.hypha.pollen.claim",
+  "pfp": {
+    "__pfp": "paeqaaaicamcakbqhbaequcymbuha6earcijrifiwc4mbsgq3dqor4hy"
+  },
+  "cid": {
+    "$link": "bafkreihdwdcefgh4dqkjv67uzcmw7ojee6xedzdetojuzjevtenxquvyku"
+  },
+  "subject": {
+    "uri": "at://did:plc:abc123/app.bsky.feed.post/3kfoo7bar",
+    "cid": "bafyreibrmmkqk6uc6mtaiyytapvcup5txkqfeyxgstav6hkuzduwbf4v4u"
+  },
+  "content": {
+    "$type": "coop.hypha.pollen.embed.text",
+    "text": "Original photo taken at Open Source Summit 2024"
+  },
+  "createdAt": "2024-01-15T10:30:00.000Z"
+}

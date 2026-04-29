@@ -1,0 +1,40 @@
+{
+  "lexicon": 1,
+  "id": "coop.hypha.pollen.claim",
+  "defs": {
+    "main": {
+      "type": "record",
+      "description": "A provenance claim linking a perceptual fingerprint (PFP) to a blob.",
+      "key": "tid",
+      "record": {
+        "type": "object",
+        "required": ["pfp", "cid", "content", "createdAt"],
+        "properties": {
+          "pfp": {
+            "type": "ref",
+            "ref": "ing.dasl.pfpRef"
+          },
+          "cid": {
+            "type": "cid-link",
+            "description": "CID of the blob the PFP was generated from."
+          },
+          "subject": {
+            "type": "ref",
+            "ref": "com.atproto.repo.strongRef",
+            "description": "Ref to the source record containing the blob."
+          },
+          "content": {
+            "type": "union",
+            "description": "Content of the claim, such as text.",
+            "refs": ["coop.hypha.pollen.embed.text"]
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "datetime",
+            "description": "Timestamp when this claim was created."
+          }
+        }
+      }
+    }
+  }
+}
