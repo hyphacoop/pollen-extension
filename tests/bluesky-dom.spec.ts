@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { test, expect, type Page } from "@playwright/test";
 import fs from "node:fs";
 import path from "node:path";
 
@@ -11,6 +11,15 @@ const TEST_POST_URL =
   process.env.BLUESKY_TEST_POST_URL ??
   "https://bsky.app/profile/urra.ca/post/3mw6tkb3bqk2u";
 
+/**
+ * That same account's profile feed. Exercises the "feedItem-by-" DOM
+ * branch, which is structurally different from the single-post
+ * "postThreadItem-by-" view above (Bluesky renders the feed as a
+ * virtualized list) and is otherwise untested.
+ */
+const TEST_PROFILE_URL =
+  process.env.BLUESKY_TEST_PROFILE_URL ?? "https://bsky.app/profile/urra.ca";
+
 const CONTENT_SCRIPT_PATH = path.resolve(__dirname, "../dist/content.js");
 
 test.beforeAll(() => {
@@ -21,9 +30,8 @@ test.beforeAll(() => {
   }
 });
 
-test("Pollen's selectors and injection logic still match bsky.app's live DOM", async ({
-  page,
-}) => {
+/** Collects uncaught page exceptions and Pollen's own logged errors. */
+function trackErrors(page: Page) {
   const pageErrors: string[] = [];
   const pollenConsoleErrors: string[] = [];
 
@@ -34,11 +42,27 @@ test("Pollen's selectors and injection logic still match bsky.app's live DOM", a
     }
   });
 
-  await page.goto(TEST_POST_URL, { waitUntil: "load" });
+  return { pageErrors, pollenConsoleErrors };
+}
 
-  // injectClaimButtons only attaches a button to images whose CDN-URL blob
-  // CID matches one of the mocked PFP blobs' cid; the mock has to use
-  // the fixture post's real image CID, not a placeholder.
+function assertNoErrors(pageErrors: string[], pollenConsoleErrors: string[]) {
+  expect(pageErrors, `Uncaught errors in content.ts:\n${pageErrors.join("\n")}`).toEqual(
+    []
+  );
+  expect(
+    pollenConsoleErrors,
+    `Pollen logged errors it shouldn't have (network calls were mocked to succeed):\n${pollenConsoleErrors.join(
+      "\n"
+    )}`
+  ).toEqual([]);
+}
+
+/**
+ * injectClaimButtons only attaches a button to images whose CDN-URL blob
+ * CID matches one of the mocked PFP blobs' cid; the mock has to use a real
+ * image's CID from the page under test, not a placeholder.
+ */
+async function getFirstFeedImageCid(page: Page): Promise<string> {
   const imgSrc = await page
     .locator('img[src*="cdn.bsky.app/img/feed_"]')
     .first()
@@ -46,19 +70,22 @@ test("Pollen's selectors and injection logic still match bsky.app's live DOM", a
   const cidMatch = imgSrc?.match(/\/plain\/did:[^/]+\/([^@]+)/);
   const realCid = cidMatch?.[1];
   if (!realCid) {
-    throw new Error(
-      `Could not parse a blob CID out of the fixture post's image URL: ${imgSrc}`
-    );
+    throw new Error(`Could not parse a blob CID out of the image URL: ${imgSrc}`);
   }
+  return realCid;
+}
 
-  // Stub Pollen's own backend and the Bluesky profile-hydration endpoint it
-  // calls, so this test isolates "did Bluesky's DOM change" from "is our
-  // backend up"
+/**
+ * Stub Pollen's own backend and the Bluesky profile-hydration endpoint it
+ * calls, so these tests isolate "did Bluesky's DOM change" from "is our
+ * backend up"
+ */
+async function mockPollenBackend(page: Page, imageCid: string): Promise<void> {
   await page.route("https://nectar-api.hypha.coop/pfps**", (route) =>
     route.fulfill({
       status: 200,
       contentType: "application/json",
-      body: JSON.stringify({ blobs: [{ cid: realCid, pfp: "test-pfp" }] }),
+      body: JSON.stringify({ blobs: [{ cid: imageCid, pfp: "test-pfp" }] }),
     })
   );
   await page.route("https://nectar-api.hypha.coop/search/pfps**", (route) =>
@@ -97,11 +124,24 @@ test("Pollen's selectors and injection logic still match bsky.app's live DOM", a
         }),
       })
   );
+}
 
-  // Inject the real built bundle as a page-world <script> tag. This is what
-  // manifest.json's world: "MAIN" content script becomes at runtime, and
-  // running it after "load" mirrors run_at: "document_idle".
+/**
+ * Injects the real built bundle as a page-world <script> tag. This is what
+ * manifest.json's world: "MAIN" content script becomes at runtime, and
+ * running it after "load" mirrors run_at: "document_idle".
+ */
+async function injectContentScript(page: Page): Promise<void> {
   await page.addScriptTag({ path: CONTENT_SCRIPT_PATH });
+}
+
+test("Pollen still works on a single post (thread) view", async ({ page }) => {
+  const { pageErrors, pollenConsoleErrors } = trackErrors(page);
+
+  await page.goto(TEST_POST_URL, { waitUntil: "load" });
+  const realCid = await getFirstFeedImageCid(page);
+  await mockPollenBackend(page, realCid);
+  await injectContentScript(page);
 
   // Selectors Pollen reads directly from Bluesky's DOM.
   await expect(
@@ -122,13 +162,35 @@ test("Pollen's selectors and injection logic still match bsky.app's live DOM", a
   await expect(page.locator(".pollen-claim-wrap").first()).toBeAttached();
   await expect(page.locator(".pollen-claim-btn").first()).toBeAttached();
 
-  expect(pageErrors, `Uncaught errors in content.ts:\n${pageErrors.join("\n")}`).toEqual(
-    []
-  );
-  expect(
-    pollenConsoleErrors,
-    `Pollen logged errors it shouldn't have (network calls were mocked to succeed):\n${pollenConsoleErrors.join(
-      "\n"
-    )}`
-  ).toEqual([]);
+  assertNoErrors(pageErrors, pollenConsoleErrors);
+});
+
+test("Pollen still works on a profile feed (virtualized list) view", async ({
+  page,
+}) => {
+  const { pageErrors, pollenConsoleErrors } = trackErrors(page);
+
+  await page.goto(TEST_PROFILE_URL, { waitUntil: "load" });
+  const realCid = await getFirstFeedImageCid(page);
+  await mockPollenBackend(page, realCid);
+  await injectContentScript(page);
+
+  // The feed renders items via "feedItem-by-", a structurally different
+  // branch of findPostContainer's selector than the thread view above.
+  await expect(
+    page.locator('[data-testid^="feedItem-by-"]').first()
+  ).toBeVisible({ timeout: 20_000 });
+  await expect(
+    page.locator('img[src*="cdn.bsky.app/img/feed_"]').first()
+  ).toBeVisible();
+  await expect(page.locator('[data-testid="replyBtn"]').first()).toBeVisible();
+
+  await expect(
+    page.locator('[data-pollen-injected="true"]').first()
+  ).toBeAttached({ timeout: 20_000 });
+  await expect(page.locator(".pollen-claim-strip").first()).toBeVisible();
+  await expect(page.locator(".pollen-claim-wrap").first()).toBeAttached();
+  await expect(page.locator(".pollen-claim-btn").first()).toBeAttached();
+
+  assertNoErrors(pageErrors, pollenConsoleErrors);
 });
