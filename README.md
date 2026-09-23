@@ -50,8 +50,21 @@ The extension uses a content script that:
 6. Injects claim badges and per-image claim buttons into the feed
 7. Writes new claim records to the user's PDS via their active session
 
+## Bluesky DOM compatibility check
+
+Pollen works by pattern-matching Bluesky's live DOM (`data-testid` attributes, CDN image URL shapes, computed-style walks), which Bluesky can change without notice. A [scheduled GitHub Actions workflow](.github/workflows/bluesky-dom-check.yml) loads the real built extension against a real `bsky.app` post and profile feed daily and fails if Pollen's selectors and injection logic stop matching, on either the single-post ("thread") view or the virtualized feed list view.
+
+Run it locally:
+
+```bash
+npm run build
+npx playwright install chromium   # first time only
+npm run test:bluesky
+```
+
 ## Dependencies
 
 - [@atcute/client](https://github.com/mary-ext/atcute) - AT Protocol client
 - [@atcute/bluesky](https://github.com/mary-ext/atcute) - Bluesky lexicon types
 - [esbuild](https://esbuild.github.io/) - Bundler
+- [Playwright](https://playwright.dev/) - Browser automation for the Bluesky DOM compatibility check
