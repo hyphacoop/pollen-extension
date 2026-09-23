@@ -52,7 +52,7 @@ The extension uses a content script that:
 
 ## Bluesky DOM compatibility check
 
-Pollen works by pattern-matching Bluesky's live DOM (`data-testid` attributes, CDN image URL shapes, computed-style walks), which Bluesky can change without notice. A [scheduled GitHub Actions workflow](.github/workflows/bluesky-dom-check.yml) loads the real built extension against a real `bsky.app` post daily and fails if Pollen's selectors and injection logic stop matching.
+Pollen works by pattern-matching Bluesky's live DOM (`data-testid` attributes, CDN image URL shapes, computed-style walks), which Bluesky can change without notice. A [scheduled GitHub Actions workflow](.github/workflows/bluesky-dom-check.yml) loads the real built extension against a real `bsky.app` post and profile feed daily and fails if Pollen's selectors and injection logic stop matching, on either the single-post ("thread") view or the virtualized feed list view.
 
 Run it locally:
 
